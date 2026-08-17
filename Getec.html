@@ -1,0 +1,675 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Projeto Getec - Formulário de Empreendimentos</title>
+<style>
+
+/* =====================================================================
+   PALETA DE CORES DA MARCA (Alphaville)
+   Se a marca mudar de cor um dia, só precisa editar aqui.
+   ===================================================================== */
+:root {
+  --preto: #1a1a1a;
+  --preto-banner: #000000;
+  --branco: #ffffff;
+  --cinza-titulo-campo: #595959;   /* labels "Empreendimento", "Data", cabeçalhos da tabela */
+  --cinza-informativo: #969696;    /* texto "Preenchido por" */
+  --cinza-badge-fundo: #f0f0f0;    /* fundo dos dropdowns estilo "badge" */
+  --cinza-badge-texto: #4a4a4a;
+  --azul-disciplina: #2f6f8f;      /* cor do nome da disciplina na tabela (ajuste se precisar bater exatamente) */
+  --borda-campo: #d9d9d9;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  background: #f2f2f2;
+  color: var(--preto);
+}
+
+.app-card {
+  max-width: 1100px;
+  margin: 30px auto;
+  background: var(--branco);
+  border-radius: 14px;
+  overflow: hidden;
+  box-shadow: 0 4px 24px rgba(0,0,0,0.08);
+  position: relative;
+}
+
+/* =====================================================================
+   BANNER PRETO SUPERIOR (logo + título do empreendimento na tela 2)
+   ===================================================================== */
+.banner {
+  background: var(--preto-banner);
+  padding: 24px 32px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: relative;
+}
+
+/* Logo real (assets/logo-alphaville.png), fundo preto com texto/traços
+   brancos — por isso combina direto com o banner preto, sem precisar
+   de nenhum tratamento extra de cor. */
+.logo-img {
+  height: 46px;   /* Tela 1: logo maior, é o único elemento do banner */
+  width: auto;
+}
+.logo-img-tela2 {
+  height: 30px;   /* Tela 2: menor, pra não competir com o título centralizado */
+}
+
+.banner-titulo-empreendimento {
+  color: var(--branco);
+  font-size: 15px;
+  font-weight: 600;
+  text-align: center;
+  flex: 1;
+}
+
+/* =====================================================================
+   MARCA D'ÁGUA (watermark topográfico nos cantos)
+   Troque os caminhos "assets/watermark.png" pelo PNG real quando o
+   Gustavo enviar o arquivo. Por ora, os elementos ficam ocultos
+   (display:none) até a imagem existir, pra não quebrar o layout com
+   um "ícone de imagem quebrada".
+   ===================================================================== */
+.watermark {
+  position: absolute;
+  bottom: 0;
+  width: 140px;
+  opacity: 0.5;
+  pointer-events: none;
+  display: none; /* remova esta linha (ou troque pra "block") quando inserir o PNG real */
+}
+.watermark.esquerda { left: 0; }
+.watermark.direita { right: 0; transform: scaleX(-1); }
+
+/* =====================================================================
+   TELA 1 - SELEÇÃO DE EMPREENDIMENTO E DATA
+   ===================================================================== */
+.tela {
+  padding: 32px;
+  position: relative;
+  min-height: 300px;
+}
+.tela.oculta { display: none; }
+
+.preenchido-por {
+  color: var(--cinza-informativo);
+  font-size: 13px;
+  font-style: italic;
+  margin-bottom: 20px;
+}
+
+.campo-grupo {
+  max-width: 420px;
+  margin: 0 auto 18px auto;
+}
+.campo-titulo {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--cinza-titulo-campo);
+  margin-bottom: 6px;
+}
+.campo-input, select.campo-input, input.campo-input {
+  width: 100%;
+  padding: 10px 14px;
+  font-size: 15px;
+  border: 1px solid var(--borda-campo);
+  border-radius: 8px;
+  color: var(--preto);
+  font-family: inherit;
+  background: var(--branco);
+}
+
+.tela1-central {
+  max-width: 420px;
+  margin: 40px auto 0 auto;
+}
+
+/* =====================================================================
+   BOTÕES (Avançar / Voltar / Enviar)
+   ===================================================================== */
+.btn {
+  border-radius: 8px;
+  padding: 12px 26px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+}
+.btn-preto {
+  background: var(--preto);
+  color: var(--branco);
+  border: 1px solid var(--preto);
+}
+.btn-outline {
+  background: var(--branco);
+  color: var(--preto);
+  border: 1px solid var(--preto);
+}
+.btn-full { width: 100%; margin-top: 8px; }
+
+/* =====================================================================
+   TELA 2 - TABELA DE DISCIPLINAS
+   ===================================================================== */
+.tabela-scroll { overflow-x: auto; margin-top: 20px; }
+table.disciplinas {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 820px;
+  font-size: 13px;
+}
+table.disciplinas thead th {
+  text-align: left;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--cinza-titulo-campo);
+  padding: 0 8px 10px 4px;
+  border-bottom: 2px solid var(--preto);
+}
+table.disciplinas tbody td {
+  padding: 10px 8px;
+  border-bottom: 1px solid #ececec;
+  vertical-align: middle;
+}
+.nome-disciplina {
+  color: var(--azul-disciplina);
+  font-weight: 600;
+  font-size: 12px;
+  text-transform: uppercase;
+}
+
+/* Dropdowns da tabela (Aprovação/Projeto/Orçamento) em estilo "badge" neutro */
+select.dropdown-badge {
+  background: var(--cinza-badge-fundo);
+  color: var(--cinza-badge-texto);
+  border: 1px solid var(--cinza-badge-fundo);
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-size: 12px;
+  font-family: inherit;
+  width: 100%;
+}
+
+/* Campos numéricos (Obra Interna/Externa/Externa Part.) */
+input.valor-numero {
+  border: 1px solid var(--borda-campo);
+  border-radius: 6px;
+  padding: 8px 10px;
+  font-size: 13px;
+  width: 100%;
+  text-align: right;
+  font-family: inherit;
+}
+/* Custo Previsto: campo calculado, somente leitura */
+input.valor-calculado {
+  border: 1px solid var(--borda-campo);
+  border-radius: 6px;
+  padding: 8px 10px;
+  font-size: 13px;
+  width: 100%;
+  text-align: right;
+  font-family: inherit;
+  background: #fafafa;
+  color: var(--preto);
+  font-weight: 600;
+}
+
+.rodape-botoes {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 26px;
+}
+
+.tela2-subtitulo {
+  text-align: center;
+  color: #bbb;
+  font-size: 11px;
+  margin-top: 2px;
+}
+
+.aviso {
+  text-align: center;
+  padding: 40px;
+  color: #888;
+  font-size: 14px;
+}
+
+</style>
+</head>
+<body>
+
+<div class="app-card">
+
+  <!-- ===================================================================
+       TELA 1
+       =================================================================== -->
+  <div id="tela1" class="tela">
+
+    <div class="banner">
+      <div style="width:1px;"></div> <!-- espaçador só pra manter o flex simétrico -->
+      <img class="logo-img" src="assets/logo-alphaville.png" alt="alphaville">
+    </div>
+
+    <div style="padding:32px;">
+      <div class="campo-grupo">
+        <label class="campo-titulo" for="ddPreenchidoPor">Preenchido por</label>
+        <select id="ddPreenchidoPor" class="campo-input">
+          <option value="">Carregando lista...</option>
+        </select>
+      </div>
+
+      <div class="campo-grupo">
+        <label class="campo-titulo" for="ddEmpreendimento">Empreendimento</label>
+        <select id="ddEmpreendimento" class="campo-input">
+          <option value="">Carregando lista...</option>
+        </select>
+      </div>
+
+      <div class="campo-grupo">
+        <label class="campo-titulo" for="dpData">Data</label>
+        <input type="date" id="dpData" class="campo-input">
+      </div>
+
+      <div class="campo-grupo">
+        <button class="btn btn-preto btn-full" onclick="avancarParaTela2()">Avançar →</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================================================================
+       TELA 2
+       =================================================================== -->
+  <div id="tela2" class="tela oculta">
+
+    <div class="banner">
+      <div style="width:1px;"></div>
+      <div id="tituloEmpreendimentoData" class="banner-titulo-empreendimento">
+        EMPREENDIMENTO · MÊS
+      </div>
+      <img class="logo-img logo-img-tela2" src="assets/logo-alphaville.png" alt="alphaville">
+    </div>
+
+    <div style="padding:24px 32px 32px;">
+
+      <img class="watermark esquerda" src="assets/watermark.png" alt="">
+      <img class="watermark direita" src="assets/watermark.png" alt="">
+
+      <div class="tabela-scroll">
+        <table class="disciplinas">
+          <thead>
+            <tr>
+              <th>Disciplina</th>
+              <th>Aprovação</th>
+              <th>Projeto</th>
+              <th>Orçamento</th>
+              <th style="text-align:right;">Obra Interna</th>
+              <th style="text-align:right;">Obra Externa</th>
+              <th style="text-align:right;">Externa Part.</th>
+              <th style="text-align:right;">Custo Previsto</th>
+            </tr>
+          </thead>
+          <tbody id="corpoTabelaDisciplinas">
+            <tr><td colspan="8" class="aviso">Carregando disciplinas...</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="rodape-botoes">
+        <button class="btn btn-outline" onclick="voltarParaTela1()">← Voltar</button>
+        <button class="btn btn-preto" onclick="enviarFormulario()">Enviar →</button>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+/* =========================================================================
+   ============================  CONFIGURAÇÃO  ============================
+   O formulário NÃO fala mais direto com o SharePoint (isso quebraria por
+   CORS, já que o site agora mora fora do domínio do SharePoint, no Azure
+   Static Web App). Em vez disso, ele fala só com dois fluxos do Power
+   Automate — um de LEITURA (busca listas/opções) e um de GRAVAÇÃO (salva
+   as respostas no SQL). Cole aqui as duas URLs que o Power Automate gera
+   pra cada fluxo (copie o campo "HTTP URL" do card "manual" de cada um).
+   ========================================================================= */
+const CONFIG = {
+  // URL do fluxo "Getec - Buscar Dados de Referência"
+  URL_FLUXO_LEITURA: "https://default9479b49f8d62489daa2d5df3e676b9.6d.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/17/workflows/6e15af8270bc4dd6b631ebbf3087c890/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=iNGK919KBN7IcVdHHxsFeazXclIrxfL5ajeAWkIca58",
+
+  // URL do fluxo "Getec - Gravar Respostas" (atualize quando o fluxo de
+  // gravação estiver ligado de verdade no SQL — por enquanto ele só
+  // responde "Recebido", sem gravar nada ainda)
+  URL_FLUXO_GRAVACAO: "COLE_AQUI_A_URL_DO_FLUXO_DE_GRAVACAO"
+};
+
+/* =========================================================================
+   ESTADO EM MEMÓRIA (equivalente ao "colRespostas" do Power Apps)
+   ========================================================================= */
+let estado = {
+  preenchidoPor: null,              // {Id, Title, Email}
+  empreendimentoSelecionado: null,  // {Id, Title}
+  mesReferencia: null,              // formato "yyyy-mm", igual ao Power Apps
+  disciplinas: [],                  // lista de disciplinas com os valores digitados
+  opcoesAprovacao: [],
+  opcoesProjeto: [],
+  opcoesOrcamento: []
+};
+
+/* =========================================================================
+   HELPER ÚNICO DE CHAMADA — fala só com o Power Automate, nunca direto
+   com o SharePoint. Cada fluxo devolve exatamente o que a ação
+   "Responder à solicitação" (Response) configurada nele manda de volta.
+   ========================================================================= */
+
+async function chamarFluxoLeitura(tipoConsulta) {
+  const resp = await fetch(CONFIG.URL_FLUXO_LEITURA, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ tipoConsulta })
+  });
+  if (!resp.ok) throw new Error(`Erro ao buscar "${tipoConsulta}": ${resp.status}`);
+  return resp.json();
+}
+
+async function chamarFluxoGravacao(dadosDisciplina) {
+  const resp = await fetch(CONFIG.URL_FLUXO_GRAVACAO, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(dadosDisciplina)
+  });
+  if (!resp.ok) throw new Error(`Erro ao gravar "${dadosDisciplina.disciplina}": ${resp.status}`);
+  return resp.json().catch(() => null); // a resposta de gravação pode não vir em JSON, ok não quebrar por isso
+}
+
+// Extrai a lista de itens do formato que o "Get items" do SharePoint
+// devolve dentro do Response do Power Automate: { results: [ {...}, {...} ] }
+function extrairItens(respostaFluxo) {
+  return (respostaFluxo && respostaFluxo.results) ? respostaFluxo.results : [];
+}
+
+// Extrai as opções (Choices) de uma coluna a partir do formato que o
+// "Send an HTTP request to SharePoint" devolve — o campo de opções
+// limpas fica em respostaFluxo.Choices.results
+function extrairOpcoesChoice(respostaFluxo) {
+  if (respostaFluxo && respostaFluxo.Choices && respostaFluxo.Choices.results) {
+    return respostaFluxo.Choices.results;
+  }
+  return [];
+}
+
+/* =========================================================================
+   INICIALIZAÇÃO DA TELA 1
+   ========================================================================= */
+
+async function inicializar() {
+  await carregarPessoasGtech();
+  await carregarEmpreendimentos();
+
+  // Data padrão = hoje (equivalente ao DatePicker1.SelectedDate = Today())
+  const hoje = new Date();
+  document.getElementById("dpData").value = hoje.toISOString().split("T")[0];
+}
+
+// "Preenchido por" agora é escolhido manualmente (não dá mais pra
+// identificar automaticamente via SSO, porque o site não roda mais
+// dentro do domínio do SharePoint) — ver lista PessoasGtech no SharePoint
+async function carregarPessoasGtech() {
+  const dados = extrairItens(await chamarFluxoLeitura("PessoasGtech"));
+  const select = document.getElementById("ddPreenchidoPor");
+  select.innerHTML = "";
+  dados.forEach(item => {
+    const opt = document.createElement("option");
+    opt.value = item.Id;
+    opt.text = item.Title;
+    opt.dataset.title = item.Title;
+    opt.dataset.email = item.Email || "";
+    select.appendChild(opt);
+  });
+}
+
+async function carregarEmpreendimentos() {
+  const dados = extrairItens(await chamarFluxoLeitura("Empreendimentos"));
+  const select = document.getElementById("ddEmpreendimento");
+  select.innerHTML = "";
+  dados.forEach(item => {
+    const opt = document.createElement("option");
+    opt.value = item.Id;
+    opt.text = item.Title;
+    opt.dataset.title = item.Title;
+    select.appendChild(opt);
+  });
+}
+
+/* =========================================================================
+   NAVEGAÇÃO ENTRE TELAS
+   ========================================================================= */
+
+async function avancarParaTela2() {
+  const selectPessoa = document.getElementById("ddPreenchidoPor");
+  const pessoaSelecionada = selectPessoa.options[selectPessoa.selectedIndex];
+  const selectEmp = document.getElementById("ddEmpreendimento");
+  const opcaoSelecionada = selectEmp.options[selectEmp.selectedIndex];
+
+  if (!pessoaSelecionada || !pessoaSelecionada.value) {
+    alert("Selecione quem está preenchendo antes de avançar.");
+    return;
+  }
+  if (!opcaoSelecionada || !opcaoSelecionada.value) {
+    alert("Selecione um empreendimento antes de avançar.");
+    return;
+  }
+
+  estado.preenchidoPor = {
+    Id: pessoaSelecionada.value,
+    Title: pessoaSelecionada.dataset.title,
+    Email: pessoaSelecionada.dataset.email
+  };
+
+  estado.empreendimentoSelecionado = {
+    Id: opcaoSelecionada.value,
+    Title: opcaoSelecionada.dataset.title
+  };
+
+  const dataEscolhida = new Date(document.getElementById("dpData").value);
+  // Formato "yyyy-mm", igual ao Text(DatePicker1.SelectedDate;"yyyy-mm") do Power Apps
+  estado.mesReferencia = `${dataEscolhida.getFullYear()}-${String(dataEscolhida.getMonth()+1).padStart(2,"0")}`;
+
+  document.getElementById("tela1").classList.add("oculta");
+  document.getElementById("tela2").classList.remove("oculta");
+
+  await montarTela2();
+}
+
+function voltarParaTela1() {
+  document.getElementById("tela2").classList.add("oculta");
+  document.getElementById("tela1").classList.remove("oculta");
+}
+
+/* =========================================================================
+   MONTAGEM DA TELA 2
+   ========================================================================= */
+
+async function montarTela2() {
+  // Título do banner: "EMPREENDIMENTO · mês ano" (igual ao mockup)
+  const [ano, mes] = estado.mesReferencia.split("-");
+  const nomesMeses = ["janeiro","fevereiro","março","abril","maio","junho","julho","agosto","setembro","outubro","novembro","dezembro"];
+  const mesExtenso = nomesMeses[parseInt(mes,10)-1];
+  document.getElementById("tituloEmpreendimentoData").innerText =
+    `${estado.empreendimentoSelecionado.Title.toUpperCase()} · ${mesExtenso} ${ano}`;
+
+  // Carrega as opções dos 3 dropdowns (equivalente ao Choices() do Power Fx)
+  await carregarOpcoesDropdowns();
+
+  // Carrega as disciplinas (o fluxo já devolve na ordem certa, pela
+  // coluna Ordem configurada no "Get items" do Power Automate)
+  const disciplinasBrutas = extrairItens(await chamarFluxoLeitura("Disciplinas"));
+
+  // NOTA: como agora tudo vive só no SQL (não gravamos mais no
+  // SharePoint), o pré-carregamento de respostas já existentes
+  // (equivalente ao LookUp do Power Apps) vai precisar de uma consulta
+  // ao SQL — isso ainda não está plugado aqui, porque depende do
+  // fluxo de gravação/consulta no banco "Projetos" estar pronto.
+  // Por ora, toda disciplina começa em branco/zerada.
+  estado.disciplinas = disciplinasBrutas.map(disc => ({
+    idDisciplina: disc.Id,
+    nome: disc.Title,
+    chaveUnica: montarChaveUnica(estado.empreendimentoSelecionado.Title, estado.mesReferencia, disc.Title),
+    aprovacao: "",
+    projeto: "",
+    orcamento: "",
+    obraInterna: 0,
+    obraExterna: 0,
+    externaPart: 0
+  }));
+
+  renderizarTabelaDisciplinas();
+}
+
+async function carregarOpcoesDropdowns() {
+  estado.opcoesAprovacao = extrairOpcoesChoice(await chamarFluxoLeitura("Aprovacao"));
+  estado.opcoesProjeto = extrairOpcoesChoice(await chamarFluxoLeitura("Projeto"));
+  estado.opcoesOrcamento = extrairOpcoesChoice(await chamarFluxoLeitura("Orcamento"));
+}
+
+// Chave única igual à usada no Power Apps: Empreendimento+MesReferencia+Disciplina
+function montarChaveUnica(empreendimento, mesReferencia, disciplina) {
+  return `${empreendimento}|${mesReferencia}|${disciplina}`;
+}
+
+/* =========================================================================
+   RENDERIZAÇÃO DA TABELA (equivalente à Gallery do Power Apps)
+   ========================================================================= */
+
+function renderizarTabelaDisciplinas() {
+  const corpo = document.getElementById("corpoTabelaDisciplinas");
+  corpo.innerHTML = "";
+
+  estado.disciplinas.forEach((disc, indice) => {
+    const linha = document.createElement("tr");
+    linha.innerHTML = `
+      <td class="nome-disciplina">${disc.nome}</td>
+      <td>${montarSelectBadge(indice, "aprovacao", estado.opcoesAprovacao, disc.aprovacao)}</td>
+      <td>${montarSelectBadge(indice, "projeto", estado.opcoesProjeto, disc.projeto)}</td>
+      <td>${montarSelectBadge(indice, "orcamento", estado.opcoesOrcamento, disc.orcamento)}</td>
+      <td><input class="valor-numero" type="text" value="${formatarMoeda(disc.obraInterna)}"
+            onchange="onChangeValor(${indice}, 'obraInterna', this)"></td>
+      <td><input class="valor-numero" type="text" value="${formatarMoeda(disc.obraExterna)}"
+            onchange="onChangeValor(${indice}, 'obraExterna', this)"></td>
+      <td><input class="valor-numero" type="text" value="${formatarMoeda(disc.externaPart)}"
+            onchange="onChangeValor(${indice}, 'externaPart', this)"></td>
+      <td><input class="valor-calculado" type="text" id="custoPrevisto_${indice}"
+            value="${formatarMoeda(calcularCustoPrevisto(disc))}" readonly></td>
+    `;
+    corpo.appendChild(linha);
+  });
+}
+
+function montarSelectBadge(indice, campo, opcoes, valorAtual) {
+  let html = `<select class="dropdown-badge" onchange="onChangeSelect(${indice}, '${campo}', this)">`;
+  html += `<option value="" ${!valorAtual ? "selected" : ""}>Selecione...</option>`;
+  opcoes.forEach(op => {
+    html += `<option value="${op}" ${op === valorAtual ? "selected" : ""}>${op}</option>`;
+  });
+  html += `</select>`;
+  return html;
+}
+
+// Formato brasileiro: 1.234,56 (equivalente ao Text(valor;"#,##0.00";"pt-BR") do Power Fx)
+function formatarMoeda(valor) {
+  return Number(valor || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+// Converte "1.234,56" de volta pra número puro 1234.56
+// (equivalente ao Value(Self.Text;"pt-BR") do Power Fx)
+function converterMoedaParaNumero(texto) {
+  const limpo = texto.replace(/\./g, "").replace(",", ".");
+  const numero = parseFloat(limpo);
+  return isNaN(numero) ? 0 : numero;
+}
+
+function calcularCustoPrevisto(disc) {
+  return (disc.obraInterna || 0) + (disc.obraExterna || 0) + (disc.externaPart || 0);
+}
+
+/* =========================================================================
+   EVENTOS DE EDIÇÃO (equivalente ao OnChange de cada controle no Power Apps)
+   ========================================================================= */
+
+function onChangeSelect(indice, campo, elemento) {
+  estado.disciplinas[indice][campo] = elemento.value;
+}
+
+function onChangeValor(indice, campo, elemento) {
+  const valorNumerico = converterMoedaParaNumero(elemento.value);
+  estado.disciplinas[indice][campo] = valorNumerico;
+  elemento.value = formatarMoeda(valorNumerico); // reformata visualmente
+
+  // Recalcula o Custo Previsto dessa linha em tempo real
+  const custo = calcularCustoPrevisto(estado.disciplinas[indice]);
+  document.getElementById(`custoPrevisto_${indice}`).value = formatarMoeda(custo);
+}
+
+/* =========================================================================
+   ENVIO DO FORMULÁRIO
+   Regra de negócio (igual ao Power Apps/versão SharePoint anterior),
+   só que agora tudo grava no SQL através do fluxo "Getec - Gravar
+   Respostas" (a lógica de "sempre insere no log" + "upsert no estado
+   atual" acontece DENTRO desse fluxo, não mais aqui no JavaScript):
+   - Getec_Log_Respostas: SEMPRE insere um novo registro (histórico
+     completo, inclusive respostas parciais/"Selecione...").
+   - Getec_Estado_Atual: upsert pela ChaveUnica (o fluxo verifica se já
+     existe e decide entre Update ou Insert).
+   Mandamos uma chamada ao fluxo POR DISCIPLINA.
+   ========================================================================= */
+
+async function enviarFormulario() {
+  const botao = event.target;
+  botao.disabled = true;
+  botao.innerText = "Enviando...";
+
+  try {
+    for (const disc of estado.disciplinas) {
+      await chamarFluxoGravacao({
+        empreendimento: estado.empreendimentoSelecionado.Title,
+        mesReferencia: estado.mesReferencia,
+        disciplina: disc.nome,
+        chaveUnica: disc.chaveUnica,
+        aprovacao: disc.aprovacao,
+        projeto: disc.projeto,
+        orcamento: disc.orcamento,
+        obraInterna: disc.obraInterna,
+        obraExterna: disc.obraExterna,
+        externaPart: disc.externaPart,
+        preenchidoPor: estado.preenchidoPor.Title
+      });
+    }
+
+    alert("Formulário enviado com sucesso!");
+    voltarParaTela1();
+
+  } catch (erro) {
+    console.error(erro);
+    alert("Ocorreu um erro ao enviar. Verifique sua conexão e tente novamente.");
+  } finally {
+    botao.disabled = false;
+    botao.innerText = "Enviar →";
+  }
+}
+
+/* =========================================================================
+   PONTO DE PARTIDA
+   ========================================================================= */
+document.addEventListener("DOMContentLoaded", inicializar);
+</script>
+</body>
+</html>
