@@ -164,7 +164,7 @@ body {
 table.disciplinas {
   width: 100%;
   border-collapse: collapse;
-  min-width: 820px;
+  min-width: 1020px;
   font-size: 13px;
 }
 table.disciplinas thead th {
@@ -197,6 +197,7 @@ select.dropdown-badge {
   font-size: 12px;
   font-family: inherit;
   width: 100%;
+  min-width: 130px;
 }
 
 /* Campos numéricos (Obra Interna/Externa/Externa Part.) */
@@ -206,6 +207,7 @@ input.valor-numero {
   padding: 8px 10px;
   font-size: 13px;
   width: 100%;
+  min-width: 100px;
   text-align: right;
   font-family: inherit;
 }
@@ -216,6 +218,7 @@ input.valor-calculado {
   padding: 8px 10px;
   font-size: 13px;
   width: 100%;
+  min-width: 110px;
   text-align: right;
   font-family: inherit;
   background: #fafafa;
@@ -391,19 +394,44 @@ async function chamarFluxoGravacao(dadosDisciplina) {
   return resp.json().catch(() => null); // a resposta de gravação pode não vir em JSON, ok não quebrar por isso
 }
 
-// Extrai a lista de itens do formato que o "Get items" do SharePoint
-// devolve dentro do Response do Power Automate: { results: [ {...}, {...} ] }
+// Extrai a lista de itens da resposta do fluxo de leitura. O formato
+// depende de como o "Body" da ação Response foi configurado no Power
+// Automate: se apontar direto para a saída "value" do Get items, a
+// resposta já vem como um array puro; se vier de outra estrutura,
+// pode estar dentro de uma propriedade "results" ou "value".
 function extrairItens(respostaFluxo) {
-  return (respostaFluxo && respostaFluxo.results) ? respostaFluxo.results : [];
+  if (!respostaFluxo) return [];
+  if (Array.isArray(respostaFluxo)) return respostaFluxo;
+  if (Array.isArray(respostaFluxo.value)) return respostaFluxo.value;
+  if (Array.isArray(respostaFluxo.results)) return respostaFluxo.results;
+  return [];
 }
 
 // Extrai as opções (Choices) de uma coluna a partir do formato que o
-// "Send an HTTP request to SharePoint" devolve — o campo de opções
-// limpas fica em respostaFluxo.Choices.results
+// "Send an HTTP request to SharePoint" devolve. O endpoint de campos
+// do SharePoint (_api/web/lists/.../fields?$filter=...) retorna uma
+// coleção — por isso as opções ficam "duas camadas" mais fundo:
+// d.results[0].Choices.results — mas também cobrimos formatos mais
+// diretos, caso o Response do fluxo já tenha "desembrulhado" isso.
 function extrairOpcoesChoice(respostaFluxo) {
-  if (respostaFluxo && respostaFluxo.Choices && respostaFluxo.Choices.results) {
+  if (!respostaFluxo) return [];
+
+  // Formato bruto do SharePoint (com envelope OData "d")
+  if (respostaFluxo.d && Array.isArray(respostaFluxo.d.results) && respostaFluxo.d.results[0]) {
+    const campo = respostaFluxo.d.results[0];
+    if (campo.Choices && Array.isArray(campo.Choices.results)) return campo.Choices.results;
+  }
+
+  // Caso o Body já venha como o próprio campo (sem envelope "d")
+  if (Array.isArray(respostaFluxo.results) && respostaFluxo.results[0] && respostaFluxo.results[0].Choices) {
+    return respostaFluxo.results[0].Choices.results || [];
+  }
+
+  // Formato mais direto: Choices já no nível raiz
+  if (respostaFluxo.Choices && Array.isArray(respostaFluxo.Choices.results)) {
     return respostaFluxo.Choices.results;
   }
+
   return [];
 }
 
@@ -412,8 +440,13 @@ function extrairOpcoesChoice(respostaFluxo) {
    ========================================================================= */
 
 async function inicializar() {
-  await carregarPessoasGtech();
-  await carregarEmpreendimentos();
+  // Cada carregamento roda de forma independente — se um falhar (ex:
+  // o Case "PessoasGtech" ainda não existe no fluxo), os outros
+  // continuam normalmente em vez de travar tudo.
+  await Promise.allSettled([
+    carregarPessoasGtech(),
+    carregarEmpreendimentos()
+  ]);
 
   // Data padrão = hoje (equivalente ao DatePicker1.SelectedDate = Today())
   const hoje = new Date();
@@ -424,17 +457,25 @@ async function inicializar() {
 // identificar automaticamente via SSO, porque o site não roda mais
 // dentro do domínio do SharePoint) — ver lista PessoasGtech no SharePoint
 async function carregarPessoasGtech() {
-  const dados = extrairItens(await chamarFluxoLeitura("PessoasGtech"));
-  const select = document.getElementById("ddPreenchidoPor");
-  select.innerHTML = "";
-  dados.forEach(item => {
-    const opt = document.createElement("option");
-    opt.value = item.Id;
-    opt.text = item.Title;
-    opt.dataset.title = item.Title;
-    opt.dataset.email = item.Email || "";
-    select.appendChild(opt);
-  });
+  try {
+    const dados = extrairItens(await chamarFluxoLeitura("PessoasGtech"));
+    const select = document.getElementById("ddPreenchidoPor");
+    select.innerHTML = "";
+    dados.forEach(item => {
+      const opt = document.createElement("option");
+      opt.value = item.Id;
+      opt.text = item.Title;
+      opt.dataset.title = item.Title;
+      opt.dataset.email = item.Email || "";
+      select.appendChild(opt);
+    });
+  } catch (e) {
+    // TEMPORÁRIO — Case "PessoasGtech" ainda não existe no fluxo de
+    // leitura. Deixa o dropdown com um aviso em vez de travar a tela.
+    console.error("Falha ao carregar PessoasGtech (esperado até o Case existir):", e);
+    const select = document.getElementById("ddPreenchidoPor");
+    select.innerHTML = '<option value="">(lista ainda não configurada)</option>';
+  }
 }
 
 async function carregarEmpreendimentos() {
@@ -460,20 +501,29 @@ async function avancarParaTela2() {
   const selectEmp = document.getElementById("ddEmpreendimento");
   const opcaoSelecionada = selectEmp.options[selectEmp.selectedIndex];
 
-  if (!pessoaSelecionada || !pessoaSelecionada.value) {
-    alert("Selecione quem está preenchendo antes de avançar.");
-    return;
+  // TEMPORÁRIO — a lista PessoasGtech ainda não existe, então por
+  // enquanto usamos uma pessoa fixa de teste em vez de bloquear o
+  // avanço. Remover este bloco (e reativar a validação abaixo) assim
+  // que a lista PessoasGtech e o Case correspondente existirem.
+  const usandoPessoaDeTeste = !pessoaSelecionada || !pessoaSelecionada.value;
+  if (usandoPessoaDeTeste) {
+    estado.preenchidoPor = {
+      Id: "0",
+      Title: "Teste (PessoasGtech pendente)",
+      Email: "gferreirao@alphaville.com.br"
+    };
+  } else {
+    estado.preenchidoPor = {
+      Id: pessoaSelecionada.value,
+      Title: pessoaSelecionada.dataset.title,
+      Email: pessoaSelecionada.dataset.email
+    };
   }
+
   if (!opcaoSelecionada || !opcaoSelecionada.value) {
     alert("Selecione um empreendimento antes de avançar.");
     return;
   }
-
-  estado.preenchidoPor = {
-    Id: pessoaSelecionada.value,
-    Title: pessoaSelecionada.dataset.title,
-    Email: pessoaSelecionada.dataset.email
-  };
 
   estado.empreendimentoSelecionado = {
     Id: opcaoSelecionada.value,
@@ -536,9 +586,14 @@ async function montarTela2() {
 }
 
 async function carregarOpcoesDropdowns() {
-  estado.opcoesAprovacao = extrairOpcoesChoice(await chamarFluxoLeitura("Aprovacao"));
-  estado.opcoesProjeto = extrairOpcoesChoice(await chamarFluxoLeitura("Projeto"));
-  estado.opcoesOrcamento = extrairOpcoesChoice(await chamarFluxoLeitura("Orcamento"));
+  const [aprovacao, projeto, orcamento] = await Promise.allSettled([
+    chamarFluxoLeitura("Aprovacao"),
+    chamarFluxoLeitura("Projeto"),
+    chamarFluxoLeitura("Orcamento")
+  ]);
+  estado.opcoesAprovacao = aprovacao.status === "fulfilled" ? extrairOpcoesChoice(aprovacao.value) : [];
+  estado.opcoesProjeto = projeto.status === "fulfilled" ? extrairOpcoesChoice(projeto.value) : [];
+  estado.opcoesOrcamento = orcamento.status === "fulfilled" ? extrairOpcoesChoice(orcamento.value) : [];
 }
 
 // Chave única igual à usada no Power Apps: Empreendimento+MesReferencia+Disciplina
@@ -641,8 +696,10 @@ async function enviarFormulario() {
     for (const disc of estado.disciplinas) {
       await chamarFluxoGravacao({
         empreendimento: estado.empreendimentoSelecionado.Title,
+        empreendimentoId: Number(estado.empreendimentoSelecionado.Id),
         mesReferencia: estado.mesReferencia,
         disciplina: disc.nome,
+        disciplinaId: Number(disc.idDisciplina),
         chaveUnica: disc.chaveUnica,
         aprovacao: disc.aprovacao,
         projeto: disc.projeto,
@@ -650,7 +707,8 @@ async function enviarFormulario() {
         obraInterna: disc.obraInterna,
         obraExterna: disc.obraExterna,
         externaPart: disc.externaPart,
-        preenchidoPor: estado.preenchidoPor.Title
+        preenchidoPor: estado.preenchidoPor.Title,
+        preenchidoPorEmail: estado.preenchidoPor.Email
       });
     }
 
