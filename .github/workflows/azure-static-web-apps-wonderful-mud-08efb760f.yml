@@ -25,6 +25,7 @@ concurrency:
 jobs:
   build_and_deploy_job:
     name: Build and Deploy
+
     if: >
       github.event_name == 'push' ||
       (github.event_name == 'pull_request' &&
@@ -34,7 +35,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           submodules: true
           lfs: false
@@ -47,20 +48,21 @@ jobs:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           action: upload
 
-          # A raiz do repositório contém os arquivos prontos do site.
+          # A raiz contém os arquivos prontos para publicação.
           app_location: "/"
 
-          # Não existe uma Azure Functions API neste projeto.
+          # Não existe uma Azure Functions API.
           api_location: ""
 
-          # O site já está pronto; nenhum diretório de build é gerado.
+          # Não existe pasta gerada por build.
           output_location: ""
 
-          # Impede o Oryx de procurar "npm run build".
+          # Desativa o Oryx e não executa npm run build.
           skip_app_build: true
 
   close_pull_request_job:
     name: Close Pull Request Environment
+
     if: >
       github.event_name == 'pull_request' &&
       github.event.action == 'closed'
